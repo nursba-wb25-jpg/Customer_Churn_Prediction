@@ -253,9 +253,7 @@ if page == "Dashboard":
 # ============================================================
 elif page == "Model Comparison":
   st.header("🤖 Machine Learning Model Comparison")
-  st.write(
-      "Three classification models are trained and evaluated using the same"
-      " testing dataset."
+
   )
 
   # --------------------------------------------------------
