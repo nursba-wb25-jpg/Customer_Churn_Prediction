@@ -26,7 +26,7 @@ st.set_page_config(
 )
 
 st.title("📊 Telco Customer Churn Prediction")
-st.write("Customer Churn Prediction Using Machine Learning Model ")
+st.write("Machine Learning Model Comparison and Customer Churn Prediction")
 
 
 # ============================================================
@@ -253,7 +253,9 @@ if page == "Dashboard":
 # ============================================================
 elif page == "Model Comparison":
   st.header("🤖 Machine Learning Model Comparison")
-
+  st.write(
+      "Three classification models are trained and evaluated using the same"
+      " testing dataset."
   )
 
   # --------------------------------------------------------
