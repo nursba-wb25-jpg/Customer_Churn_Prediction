@@ -9,15 +9,16 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 st.set_page_config(page_title="Telco Churn Predictor", layout="centered")
 
 
-# Train both Random Forest and Logistic Regression models in memory
+# Train both Random Forest and Logistic Regression models
 @st.cache_resource
 def train_models():
     df = pd.read_csv("Telco_Cusomer_Churn.csv")
 
+    # Clean numerical columns safely
     df["TotalCharges"] = pd.to_numeric(
         df["TotalCharges"].astype(str).str.strip(), errors="coerce"
     )
-    df["TotalCharges"].fillna(df["TotalCharges"].median(), inplace=True)
+    df["TotalCharges"] = df["TotalCharges"].fillna(df["TotalCharges"].median())
     df["Churn"] = df["Churn"].apply(
         lambda x: 1 if str(x).strip().lower() in ["yes", "1"] else 0
     )
@@ -39,7 +40,11 @@ def train_models():
     preprocessor = ColumnTransformer(
         transformers=[
             ("num", StandardScaler(), num_cols),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), cat_cols),
+            (
+                "cat",
+                OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+                cat_cols,
+            ),
         ]
     )
 
@@ -50,10 +55,10 @@ def train_models():
     ])
     rf_pipeline.fit(X, y)
 
-    # Model 2: Logistic Regression
+    # Model 2: Logistic Regression (max_iter=1000 prevents convergence crash)
     lr_pipeline = Pipeline(steps=[
         ("preprocessor", preprocessor),
-        ("model", LogisticRegression(random_state=42)),
+        ("model", LogisticRegression(max_iter=1000, random_state=42)),
     ])
     lr_pipeline.fit(X, y)
 
@@ -63,10 +68,14 @@ def train_models():
 st.title("Telco Customer Churn Prediction")
 st.write("Enter customer attributes below to evaluate churn probability.")
 
-# Load models
-rf_model, lr_model = train_models()
+# Load models with fallback
+try:
+    rf_model, lr_model = train_models()
+except Exception as e:
+    st.error(f"Error training models: {e}")
+    rf_model, lr_model = None, None
 
-# User Inputs
+# Inputs
 tenure = st.number_input("Tenure (Months)", min_value=0, max_value=100, value=12)
 monthly_charges = st.number_input(
     "Monthly Charges ($)", min_value=0.0, max_value=200.0, value=65.0
@@ -99,35 +108,32 @@ input_df = pd.DataFrame({
 })
 
 if st.button("Predict Churn"):
-    # Generate predictions from both models
-    rf_prob = rf_model.predict_proba(input_df)[0][1]
-    lr_prob = lr_model.predict_proba(input_df)[0][1]
+    if rf_model is not None and lr_model is not None:
+        rf_prob = rf_model.predict_proba(input_df)[0][1]
+        lr_prob = lr_model.predict_proba(input_df)[0][1]
 
-    # Primary Result Banner
-    if rf_prob >= 0.5:
-        st.error(f"High Churn Risk! Probability: {rf_prob:.1%}")
-    else:
-        st.success(f"Low Churn Risk. Probability: {rf_prob:.1%}")
+        if rf_prob >= 0.5:
+            st.error(f"High Churn Risk! Probability: {rf_prob:.1%}")
+        else:
+            st.success(f"Low Churn Risk. Probability: {rf_prob:.1%}")
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # 1. Model Comparison Table
-    st.subheader(" Machine Learning Model Comparison")
-    comparison_df = pd.DataFrame({
-        "Model": ["Random Forest", "Logistic Regression"],
-        "Predicted Risk": [
-            "High Churn" if rf_prob >= 0.5 else "Low Churn",
-            "High Churn" if lr_prob >= 0.5 else "Low Churn",
-        ],
-        "Churn Probability": [f"{rf_prob:.1%}", f"{lr_prob:.1%}"],
-    })
-    st.table(comparison_df)
+        st.subheader("Machine Learning Model Comparison")
+        comparison_df = pd.DataFrame({
+            "Model": ["Random Forest", "Logistic Regression"],
+            "Predicted Risk": [
+                "High Churn" if rf_prob >= 0.5 else "Low Churn",
+                "High Churn" if lr_prob >= 0.5 else "Low Churn",
+            ],
+            "Churn Probability": [f"{rf_prob:.1%}", f"{lr_prob:.1%}"],
+        })
+        st.table(comparison_df)
 
-    # 2. Visual Probability Chart
-    st.subheader("📈 Probability Comparison Chart (%)")
-    chart_data = pd.DataFrame(
-        [rf_prob * 100, lr_prob * 100],
-        index=["Random Forest", "Logistic Regression"],
-        columns=["Churn Risk (%)"],
-    )
-    st.bar_chart(chart_data)
+        st.subheader("📈 Probability Comparison Chart (%)")
+        chart_data = pd.DataFrame(
+            [rf_prob * 100, lr_prob * 100],
+            index=["Random Forest", "Logistic Regression"],
+            columns=["Churn Risk (%)"],
+        )
+        st.bar_chart(chart_data)
