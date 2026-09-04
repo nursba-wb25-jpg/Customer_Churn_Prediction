@@ -26,7 +26,7 @@ st.set_page_config(
 )
 
 st.title("📊 Telco Customer Churn Prediction")
-st.write("Machine Learning Model Comparison and Customer Churn Prediction")
+st.write("Customer Churn Prediction Using Machine Learning Models")
 
 
 # ============================================================
